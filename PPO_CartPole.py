@@ -137,10 +137,10 @@ def calculate_general_advantage_estimates(rewards, values, gamma=0.99, decay=0.9
     Paper: https://arxiv.org/pdf/1506.02438.pdf
     """
     next_values = np.concatenate([values[1:], [0]])
-    deltas = (
+    deltas = [
         reward + gamma * next_value - value
         for reward, value, next_value in zip(rewards, values, next_values)
-    )
+    ]
     general_advantage_estimates = [deltas[-1]]
 
     for i in reversed(range(len(deltas) - 1)):
@@ -167,21 +167,29 @@ def rollout(model, env, max_steps=1000):
         [],
         [],
     ]  # save observation(0), action(1), reward(2), values(3) and action_log_probs
-    obs = env.reset()
+    obs, _ = env.reset()
 
     ep_reward = 0
 
     for _ in range(max_steps):
-        logits, val = model(tc.tensor([obs[0]], dtype=tc.float32, device=DEVICE))
+        logits, val = model(tc.tensor(obs, dtype=tc.float32, device=DEVICE))
 
         action_distribution = Categorical(logits=logits)
         action = action_distribution.sample()
         action_log_probability = action_distribution.log_prob(action).item()
-        next_obs, reward, done, _ = env.step(action.item())
+        next_obs, reward, done, _, _ = env.step(action.item())
 
         # save the training data
         # here we pack all training data into one item and append it to the lists
-        for i, item in enumerate((obs, action, reward, val, action_log_probability)):
+        for i, item in enumerate(
+            (
+                obs,
+                action.detach().numpy(),
+                reward,
+                val.detach().numpy()[0],
+                action_log_probability,
+            )
+        ):
             train_data[i].append(item)
 
         obs = next_obs
