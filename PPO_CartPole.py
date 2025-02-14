@@ -96,10 +96,10 @@ class PPOTrainer:
                 tc.min(policy_ratio, clipped_ratio) * general_advantage_estimation
             )
 
-            policy_loss.backward()
+            policy_loss.mean().backward()
             self.policy_optim.step()
 
-            kl_divergence = (old_log_probs - new_logits).mean()
+            kl_divergence = (old_log_probs - new_logits_probs).mean()
             if kl_divergence >= self.target_kl_div:
                 break
 
